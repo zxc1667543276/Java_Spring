@@ -2,8 +2,11 @@ package src.com.tt.spring;
 
 import com.sun.istack.internal.Nullable;
 
+import java.beans.Introspector;
 import java.io.File;
 import java.lang.annotation.Annotation;
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.net.URL;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -38,8 +41,11 @@ public class ZxcContext {
                         String classname
                                 =path1.substring(path1.indexOf("src"),path1.indexOf(".class"));
                         System.out.println(classname);
-                        classname=classname.replace("\\",".");
-
+                        //for windows
+                        //classname=classname.replace("\\",".");
+                        //for mac
+                        classname=classname.replace("/",".");
+                        System.out.println(classname);
                         Class<?> a =loader.loadClass(classname);
                         if(a.isAnnotationPresent(Component.class)){
                             Component annotation = a.getAnnotation(Component.class);
@@ -48,13 +54,12 @@ public class ZxcContext {
                             if(a.isAnnotationPresent(Scope.class)){
                                 Scope annotation1 = a.getAnnotation(Scope.class);
                                 beanDefinition.setScope(annotation1.value());
-
                             }else{
-
                                 beanDefinition.setScope("singleon");
                             }
                             String beanName =annotation.value();
-
+                            if(beanName.equals(""))
+                                beanName= Introspector.decapitalize(a.getSimpleName());
                             beanDefinitionMap.put(beanName,beanDefinition);
                         }
                     }
@@ -86,7 +91,27 @@ public class ZxcContext {
         }
     }
     private  Object createBean(String beanName,BeanDefinition definition){
-        return  null;
+
+        try {
+            Class claze = definition.getType();
+            Object o = claze.getConstructor().newInstance();
+            for (Field f : claze.getDeclaredFields())
+                if(f.isAnnotationPresent(Autowired.class)){
+                    f.setAccessible(true);
+                    f.set(o,getBean(f.getName()));
+                }
+            if(o instanceof  BeanWare)
+                ((BeanWare) o).setBeanName(beanName);
+            return o;
+        } catch (InstantiationException e) {
+            throw new RuntimeException(e);
+        } catch (IllegalAccessException e) {
+            throw new RuntimeException(e);
+        } catch (InvocationTargetException e) {
+            throw new RuntimeException(e);
+        } catch (NoSuchMethodException e) {
+            throw new RuntimeException(e);
+        }
     }
 
 
